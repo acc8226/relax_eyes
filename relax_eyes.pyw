@@ -16,11 +16,11 @@ from tkinter import messagebox
 g_root = None
 
 # 工作时间 单位秒
-g_workDuration = 20
+g_workDuration = 40 * 60
 # 休息实际 单位秒
-g_relaxDuration = 10
-# 正常切换为休息状态前的第 5 秒会提醒
-g_notifyDurationBeforeRelax = 5
+g_relaxDuration = 70
+# 正常切换为休息状态前的第 3 秒会提醒
+g_notifyDurationBeforeRelax = 3
 
 # 循环间隔 单位秒
 gc_TIMER_RESOLUTION = 1
@@ -82,6 +82,7 @@ class Application(Frame):
         self.mode = gc_MODE_WORK
         # 剩余秒数为 0
         self.lapsed = 0
+        self.remaining = 0
         self.countdownText = StringVar()
         self.currentTime = StringVar()
         self.fullscreenState = False
@@ -153,33 +154,30 @@ class Application(Frame):
         # 如果当前是休息模式
         if (self.mode == gc_MODE_RELAX):
             # 进入下一个状态所需的秒数
-            remaining = g_relaxDuration - self.lapsed
-            if remaining <= 0:
+            self.remaining = g_relaxDuration - self.lapsed
+            if self.remaining <= 0:
                 # 自动进入工作状态
                 self.work(True)
         # 如果当前是工作模式
         else:
-            remaining = g_workDuration - self.lapsed
+            self.remaining = g_workDuration - self.lapsed
             # 如果还剩 20 秒将进入休息状态，这里最好是弹出通知比较好
-            if remaining <= 0:
+            if self.remaining <= 0:
                 # 自动进入休息状态
                 self.relax(True)
-            elif remaining <= g_notifyDurationBeforeRelax:
+            elif self.remaining <= g_notifyDurationBeforeRelax:
                 # 倒计时弹窗
-                if remaining == g_notifyDurationBeforeRelax:
+                if self.remaining == g_notifyDurationBeforeRelax:
                     self.bringUpWindow(False)
                 # 字符变色闪烁
-                if remaining % 2 == 0:
+                if self.remaining % 2 == 0:
                     self.countdownLabel.configure(fg='red')
                 else:
                     self.countdownLabel.configure(fg=gc_NOTIFY_FG_COLOR)
-        # 更新倒计时：还剩下 x 分 y 秒
-        self.countdownText.set("{0:02}:{1:02}".format(
-            remaining // 60, remaining % 60))
-        # 更新当前时间
-        self.currentTime.set(datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+        self.updateUI()
+
         # 继续循环
-        if remaining > 0:
+        if self.remaining > 0:
             self.lapsed += gc_TIMER_RESOLUTION
             self.after(gc_TIMER_RESOLUTION * 1000, self.timeMeas)
         else:
@@ -195,6 +193,12 @@ class Application(Frame):
             self.toFullscreen()
         else:
             self.exitFullscreen()
+
+    def updateUI(self):
+        # 更新倒计时：还剩下 x 分 y 秒
+        self.countdownText.set("{0:02}:{1:02}".format(self.remaining // 60, self.remaining % 60))
+        # 更新当前时间
+        self.currentTime.set(datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
 
     def work(self, isAuto=False):
         # 刷新工作状态
